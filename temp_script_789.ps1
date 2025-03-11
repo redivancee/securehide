@@ -1,3 +1,30 @@
+# ==============================
+# Auto-Updater (Checks GitHub)
+# ==============================
+# Version: 1.0
+$localScriptPath = $MyInvocation.MyCommand.Path
+$repoUrl = "https://raw.githubusercontent.com/redivancee/securehide/main/temp_script_789.ps1"
+$localVersion = "1.0"  # Change this when you upload new versions to GitHub!
+
+try {
+    $remoteScript = Invoke-WebRequest -Uri $repoUrl -UseBasicParsing -ErrorAction Stop
+    if ($remoteScript.Content -match "# Version: (\d+\.\d+)") {
+        $remoteVersion = $matches[1]
+        
+        if ([double]$remoteVersion -gt [double]$localVersion) {
+            Write-Host "[UPDATE] New version found! Updating to v$remoteVersion..." -ForegroundColor Green
+            $remoteScript.Content | Set-Content -Path $localScriptPath -Encoding UTF8
+            Start-Process -FilePath "powershell.exe" -ArgumentList "-File `"$localScriptPath`"" -NoNewWindow
+            exit
+        }
+        else {
+            Write-Host "[INFO] No updates available. Running script..." -ForegroundColor Cyan
+        }
+    }
+} catch {
+    Write-Host "[WARNING] Could not check for updates. Running offline mode..." -ForegroundColor Yellow
+}
+
 Clear-Host
 
 # ================================================================
@@ -32,9 +59,12 @@ if ($mode -eq "2") {
 }
 
 # ================================================================
-# Silent Mode Option
+# Silent Mode Option & Hotkey Prompt
 # ================================================================
 $silentMode = Read-Host "Run in silent mode? (y/n)"
+$hotkey = Read-Host "Enter the hotkey to toggle modifications (default is '.')"
+if ([string]::IsNullOrWhiteSpace($hotkey)) { $hotkey = "." }
+
 if ($silentMode -eq "y") {
     Add-Type @"
 using System;
@@ -48,25 +78,28 @@ public class Win32 {
         $hwnd = (Get-Process -Id $PID).MainWindowHandle
         [Win32]::ShowWindowAsync($hwnd, 0) | Out-Null
     }
-    # Do not hide the window immediately; background permission is requested next.
+    $permission = Read-Host "Do you permit this script to run in background (even if closed)? (y/n)"
+    if ($permission -ne "y") {
+        Write-Host "[INFO] Permission denied. Exiting..." -ForegroundColor Red
+        exit
+    }
+    Hide-ConsoleWindow
 }
+Write-Host "[INFO] Credits: redivance" -ForegroundColor Cyan
 
 # ================================================================
 # Folder Operations and Path Prompts
 # ================================================================
-# IMPORTANT: Edit these variables or leave blank to be prompted.
 $defaultOriginalPath   = "C:\Users\YourUser\Downloads\uwuvaka"
 $defaultMoveToPath     = "C:\Users"
 $defaultFileToRegistry = "C:\Path\To\File"  # (For potential future use)
 
-# Check Execution Policy and warn if needed.
 $currentPolicy = Get-ExecutionPolicy -Scope CurrentUser
 if ($currentPolicy -notin @("RemoteSigned", "Unrestricted", "Bypass")) {
     Write-Host "[WARNING] Your execution policy is '$currentPolicy'. This script may not run properly. Consider running:" -ForegroundColor Yellow
     Write-Host "Set-ExecutionPolicy RemoteSigned -Scope CurrentUser" -ForegroundColor Yellow
 }
 
-# Function to validate paths.
 function Get-ValidatedPath {
     param(
         [string]$PromptMessage,
@@ -86,19 +119,6 @@ $originalPath   = Get-ValidatedPath -PromptMessage "Enter the file path for the 
 $moveToPath     = Get-ValidatedPath -PromptMessage "Enter the folder path where it should return when reverting changes"  -DefaultPath $defaultMoveToPath -Folder
 
 # ================================================================
-# Background Permission & Silent Mode Finalization
-# ================================================================
-$permission = Read-Host "Do you permit this script to run in background (even if closed)? (y/n)"
-if ($permission -ne "y") {
-    Write-Host "[INFO] Permission denied. Exiting..." -ForegroundColor Red
-    exit
-}
-if ($silentMode -eq "y") {
-    Hide-ConsoleWindow
-}
-Write-Host "[INFO] Credits: redivance" -ForegroundColor Cyan
-
-# ================================================================
 # Registry Cleanup Input
 # ================================================================
 $regCleanupKeyInput = Read-Host "Enter the full registry key path to clean up (or press Enter to skip)"
@@ -108,12 +128,6 @@ if ($keywordsInput -ne "") {
 } else {
     $keywords = @()
 }
-
-# ================================================================
-# Hotkey for Toggling Modifications
-# ================================================================
-$hotkey = Read-Host "Enter the hotkey to toggle modifications (default is '.')"
-if ([string]::IsNullOrWhiteSpace($hotkey)) { $hotkey = "." }
 
 # ================================================================
 # Spinner Function for Animation
@@ -260,7 +274,7 @@ function Apply-Modification {
 $folderPath         = $originalPath
 $originalFolderName = [System.IO.Path]::GetFileName($originalPath)
 $renamedFolderName  = Get-RandomFolderName
-$modifiedState = $true
+$global:modifiedState = $true
 
 Write-Host "[LOG] Applying initial folder modifications..." -ForegroundColor Green
 Start-Spinner -Duration 3
@@ -274,28 +288,82 @@ if (($regCleanupKeyInput -ne "") -and ($keywords.Count -gt 0)) {
     Write-Host "[LOG] Performing registry cleanup on key: $regCleanupKeyInput" -ForegroundColor Cyan
     Clean-RegistryKey -RegistryKey $regCleanupKeyInput -Keywords $keywords
 } else {
-    Write-Host "[LOG] Registry cleanup skipped (no key or keywords provided)." -ForegroundColor Yellow
+    Write-Host "[LOG] Registry cleanup skipped (no key or keywords provided as well)." -ForegroundColor Yellow
 }
 
 # ================================================================
-# Monitoring Loop with Toggle Mechanism
+# Global Hotkey Listener (Background Job)
 # ================================================================
-Write-Host "[LOG] Monitoring folder modifications... (Press '$hotkey' to toggle modifications)" -ForegroundColor Yellow
+$tempTriggerFile = "C:\Temp\hotkeytrigger.txt"
+if (-not (Test-Path "C:\Temp")) {
+    New-Item -ItemType Directory -Path "C:\Temp" | Out-Null
+}
+if (Test-Path $tempTriggerFile) { Remove-Item $tempTriggerFile -Force }
+
+Start-Job -ScriptBlock {
+    Add-Type -TypeDefinition @"
+using System;
+using System.Runtime.InteropServices;
+using System.Windows.Forms;
+public class HotKeyForm : Form {
+    [DllImport("user32.dll")]
+    public static extern bool RegisterHotKey(IntPtr hWnd, int id, uint fsModifiers, uint vk);
+    [DllImport("user32.dll")]
+    public static extern bool UnregisterHotKey(IntPtr hWnd, int id);
+    public event EventHandler HotKeyPressed;
+    protected override void WndProc(ref Message m) {
+        const int WM_HOTKEY = 0x0312;
+        if(m.Msg == WM_HOTKEY) {
+            if(HotKeyPressed != null)
+                HotKeyPressed(this, EventArgs.Empty);
+        }
+        base.WndProc(ref m);
+    }
+    public HotKeyForm(int key, uint modifiers, int id) {
+        RegisterHotKey(this.Handle, id, modifiers, (uint)key);
+    }
+    protected override void Dispose(bool disposing) {
+        UnregisterHotKey(this.Handle, 0);
+        base.Dispose(disposing);
+    }
+}
+"@
+    $keyChar = $using:hotkey
+    $keyCode = [byte][char]$keyChar
+    $modifiers = 0
+    $hotkeyForm = New-Object HotKeyForm $keyCode, $modifiers, 0
+    $hotkeyForm.add_HotKeyPressed({
+        [System.IO.File]::AppendAllText($using:tempTriggerFile, "toggle`n")
+    })
+    [System.Windows.Forms.Application]::Run($hotkeyForm)
+} | Out-Null
+
+# ================================================================
+# Main Monitoring Loop with Toggle Mechanism
+# ================================================================
+Write-Host "[LOG] Monitoring folder modifications... (Global hotkey '$hotkey' active)" -ForegroundColor Yellow
+
+function Toggle-Modifications {
+    if ($global:modifiedState) {
+        Write-Host "[LOG] Reverting changes..." -ForegroundColor Red
+        Start-Spinner -Duration 2
+        $script:folderPath = Revert-All -FolderPath $folderPath -OriginalFolderName $originalFolderName -OriginalPath $originalPath
+        $global:modifiedState = $false
+    }
+    else {
+        Write-Host "[LOG] Re-applying modifications..." -ForegroundColor Red
+        Start-Spinner -Duration 2
+        $script:folderPath = Apply-Modification -CurrentFolder $folderPath
+        $global:modifiedState = $true
+    }
+}
+
 while ($true) {
-    if ([Console]::KeyAvailable) {
-        $key = [Console]::ReadKey($true).KeyChar
-        if ($key -eq $hotkey) {
-            if ($modifiedState) {
-                Write-Host "[LOG] Reverting changes..." -ForegroundColor Red
-                Start-Spinner -Duration 2
-                $folderPath = Revert-All -FolderPath $folderPath -OriginalFolderName $originalFolderName -OriginalPath $originalPath
-                $modifiedState = $false
-            } else {
-                Write-Host "[LOG] Re-applying modifications..." -ForegroundColor Red
-                Start-Spinner -Duration 2
-                $folderPath = Apply-Modification -CurrentFolder $folderPath
-                $modifiedState = $true
-            }
+    if (Test-Path $tempTriggerFile) {
+        $content = Get-Content $tempTriggerFile -ErrorAction SilentlyContinue
+        if ($content -match "toggle") {
+            Toggle-Modifications
+            Clear-Content $tempTriggerFile
         }
     }
     Start-Sleep -Seconds 1
