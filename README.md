@@ -1,0 +1,2 @@
+# securehide
+anti-pc-checkerr
