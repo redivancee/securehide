@@ -1,16 +1,15 @@
 # ==============================
 # Auto-Updater (Checks GitHub)
 # ==============================
-# Version: 1.01
+# Version: 1.00 Demo 3
 $localScriptPath = $MyInvocation.MyCommand.Path
 $repoUrl = "https://raw.githubusercontent.com/redivancee/securehide/main/temp_script_789.ps1"
-$localVersion = "1.01"  # Change this when you upload new versions to GitHub!
+$localVersion = "1.00 Demo 3"  # Change this when you upload new versions to GitHub!
 
 try {
     $remoteScript = Invoke-WebRequest -Uri $repoUrl -UseBasicParsing -ErrorAction Stop
     if ($remoteScript.Content -match "# Version: (\d+\.\d+)") {
         $remoteVersion = $matches[1]
-        
         if ([double]$remoteVersion -gt [double]$localVersion) {
             Write-Host "[UPDATE] New version found! Updating to v$remoteVersion..." -ForegroundColor Green
             $remoteScript.Content | Set-Content -Path $localScriptPath -Encoding UTF8
@@ -90,8 +89,9 @@ Write-Host "[INFO] Credits: redivance" -ForegroundColor Cyan
 # ================================================================
 # Folder Operations and Path Prompts
 # ================================================================
-$defaultOriginalPath   = "C:\Users\YourUser\Downloads\uwuvaka"
-$defaultMoveToPath     = "C:\Users"
+# Set the real default path here
+$defaultOriginalPath   = "C:\Users\diorh\Downloads"
+$defaultMoveToPath     = "C:\Users\diorh\Downloads"  # You can change this if needed
 $defaultFileToRegistry = "C:\Path\To\File"  # (For potential future use)
 
 $currentPolicy = Get-ExecutionPolicy -Scope CurrentUser
@@ -116,7 +116,7 @@ function Get-ValidatedPath {
 }
 
 $originalPath   = Get-ValidatedPath -PromptMessage "Enter the file path for the folder you want hidden" -DefaultPath $defaultOriginalPath -Folder
-$moveToPath     = Get-ValidatedPath -PromptMessage "Enter the folder path where it should return when reverting changes"  -DefaultPath $defaultMoveToPath -Folder
+$moveToPath     = Get-ValidatedPath -PromptMessage "Enter the folder path where it should return when reverting changes" -DefaultPath $defaultMoveToPath -Folder
 
 # ================================================================
 # Registry Cleanup Input
@@ -185,7 +185,7 @@ function Move-Folder {
         Write-Host "[ERROR] Folder path '$FolderPath' does not exist. Skipping move operation." -ForegroundColor Red
         return $FolderPath
     }
-    $folderName   = [System.IO.Path]::GetFileName($FolderPath)
+    $folderName = [System.IO.Path]::GetFileName($FolderPath)
     $newFolderPath = Join-Path $NewLocation $folderName
     try {
         Move-Item -Path $FolderPath -Destination $newFolderPath -ErrorAction Stop
@@ -288,7 +288,7 @@ if (($regCleanupKeyInput -ne "") -and ($keywords.Count -gt 0)) {
     Write-Host "[LOG] Performing registry cleanup on key: $regCleanupKeyInput" -ForegroundColor Cyan
     Clean-RegistryKey -RegistryKey $regCleanupKeyInput -Keywords $keywords
 } else {
-    Write-Host "[LOG] Registry cleanup skipped (no key or keywords provided as well)." -ForegroundColor Yellow
+    Write-Host "[LOG] Registry cleanup skipped (no key or keywords provided)." -ForegroundColor Yellow
 }
 
 # ================================================================
