@@ -1,10 +1,10 @@
 # ==============================
 # Auto-Updater (Checks GitHub)
 # ==============================
-# Version: 1.02
+# Version: 1.01
 $localScriptPath = $MyInvocation.MyCommand.Path
 $repoUrl = "https://raw.githubusercontent.com/redivancee/securehide/main/temp_script_789.ps1"
-$localVersion = "1.02"  # Change this when you upload new versions to GitHub!
+$localVersion = "1.01"  # Change this when you upload new versions to GitHub!
 
 try {
     $remoteScript = Invoke-WebRequest -Uri $repoUrl -UseBasicParsing -ErrorAction Stop
@@ -13,7 +13,7 @@ try {
         if ([double]$remoteVersion -gt [double]$localVersion) {
             Write-Host "[UPDATE] New version found! Updating to v$remoteVersion..." -ForegroundColor Green
             $remoteScript.Content | Set-Content -Path $localScriptPath -Encoding UTF8
-            Start-Process -FilePath "powershell.exe" -ArgumentList "-File `"$localScriptPath`"" -NoNewWindow
+            Start-Process -FilePath "powershell.exe" -ArgumentList "-ExecutionPolicy Bypass -File `"$localScriptPath`"" -NoNewWindow
             exit
         }
         else {
@@ -30,13 +30,14 @@ Clear-Host
 # Banner & Credits Section
 # ================================================================
 $banner = @"
- ________  ________   _________  ___          ________  ________          ________  ___  ___  _______   ________  ___  __       
-|\   __  \|\   ___  \|\___   ___\\  \        |\   __  \|\   ____\        |\   ____\|\  \|\  \|\  ___ \ |\   ____\|\  \|\  \     
-\ \  \|\  \ \  \\ \  \|___ \  \_\ \  \       \ \  \|\  \ \  \___|        \ \  \___|\ \  \\\  \ \   __/|\ \  \___|\ \  \/  /|_   
- \ \   __  \ \  \\ \  \   \ \  \ \ \  \       \ \   ____\ \  \            \ \  \    \ \   __  \ \  \_|/_\ \  \    \ \   ___  \  
-  \ \  \ \  \ \  \\ \  \   \ \  \ \ \  \       \ \  \___|\ \  \____        \ \  \____\ \  \ \  \ \  \_|\ \ \  \____\ \  \\ \  \ 
-   \ \__\ \__\ \__\\ \__\   \ \__\ \ \__\       \ \__\    \ \_______\       \ \_______\ \__\ \__\ \_______\ \_______\ \__\\ \__\
-    \|__|\|__|\|__| \|__|    \|__|  \|__|        \|__|     \|_______|        \|_______|\|__|\|__|\|_______|\|_______|\|__| \|__|
+ ________  _______   ________  ___  ___  ________  _______   ___  ___  ___  ________  _______           ________  ___  ___  ________  ___       ___  ________     
+|\   ____\|\  ___ \ |\   ____\|\  \|\  \|\   __  \|\  ___ \ |\  \|\  \|\  \|\   ___ \|\  ___ \         |\   __  \|\  \|\  \|\   __  \|\  \     |\  \|\   ____\    
+\ \  \___|\ \   __/|\ \  \___|\ \  \\\  \ \  \|\  \ \   __/|\ \  \\\  \ \  \ \  \_|\ \ \   __/|        \ \  \|\  \ \  \\\  \ \  \|\ /\ \  \    \ \  \ \  \___|    
+ \ \_____  \ \  \_|/_\ \  \    \ \  \\\  \ \   _  _\ \  \_|/_\ \   __  \ \  \ \  \ \\ \ \  \_|/__       \ \   ____\ \  \\\  \ \   __  \ \  \    \ \  \ \  \       
+  \|____|\  \ \  \_|\ \ \  \____\ \  \\\  \ \  \\  \\ \  \_|\ \ \  \ \  \ \  \ \  \_\\ \ \  \_|\ \       \ \  \___|\ \  \\\  \ \  \|\  \ \  \____\ \  \ \  \____  
+    ____\_\  \ \_______\ \_______\ \_______\ \__\\ _\\ \_______\ \__\ \__\ \__\ \_______\ \_______\       \ \__\    \ \_______\ \_______\ \_______\ \__\ \_______\
+   |\_________\|_______|\|_______|\|_______|\|__|\|__|\|_______|\|__|\|__|\|__|\|_______|\|_______|        \|__|     \|_______|\|_______|\|_______|\|__|\|_______|
+   \|_________|                                                                                                                                                   
 "@
 Write-Host $banner -ForegroundColor Cyan
 Write-Host "`nCredits: redivance, sev, gpt (for syntax)" -ForegroundColor Yellow
@@ -89,10 +90,8 @@ Write-Host "[INFO] Credits: redivance" -ForegroundColor Cyan
 # ================================================================
 # Folder Operations and Path Prompts
 # ================================================================
-# Set the real default path here
-$defaultOriginalPath   = "C:\Users\diorh\Downloads"
-$defaultMoveToPath     = "C:\Users\diorh\Downloads"  # You can change this if needed
-$defaultFileToRegistry = "C:\Path\To\File"  # (For potential future use)
+$defaultOriginalPath = "C:\Users\diorh\Downloads"
+$defaultMoveToPath   = "C:\Users\diorh\Downloads"  # Change if needed
 
 $currentPolicy = Get-ExecutionPolicy -Scope CurrentUser
 if ($currentPolicy -notin @("RemoteSigned", "Unrestricted", "Bypass")) {
@@ -103,8 +102,7 @@ if ($currentPolicy -notin @("RemoteSigned", "Unrestricted", "Bypass")) {
 function Get-ValidatedPath {
     param(
         [string]$PromptMessage,
-        [string]$DefaultPath,
-        [switch]$Folder
+        [string]$DefaultPath
     )
     $path = Read-Host "$PromptMessage (default: $DefaultPath)"
     if ([string]::IsNullOrWhiteSpace($path)) { $path = $DefaultPath }
@@ -115,14 +113,14 @@ function Get-ValidatedPath {
     return $path
 }
 
-$originalPath   = Get-ValidatedPath -PromptMessage "Enter the file path for the folder you want hidden" -DefaultPath $defaultOriginalPath -Folder
-$moveToPath     = Get-ValidatedPath -PromptMessage "Enter the folder path where it should return when reverting changes" -DefaultPath $defaultMoveToPath -Folder
+$originalPath = Get-ValidatedPath -PromptMessage "Enter the file path for the folder you want hidden" -DefaultPath $defaultOriginalPath
+$moveToPath   = Get-ValidatedPath -PromptMessage "Enter the folder path where it should return when reverting changes" -DefaultPath $defaultMoveToPath
 
 # ================================================================
 # Registry Cleanup Input
 # ================================================================
 $regCleanupKeyInput = Read-Host "Enter the full registry key path to clean up (or press Enter to skip)"
-$keywordsInput = Read-Host "Enter comma-separated keywords for registry cleanup (to scan registry entry names, optional)"
+$keywordsInput = Read-Host "Enter comma-separated keywords for registry cleanup (optional)"
 if ($keywordsInput -ne "") {
     $keywords = ($keywordsInput -split ',') | ForEach-Object { $_.Trim() }
 } else {
@@ -143,29 +141,6 @@ function Start-Spinner {
         }
     }
     Write-Host "`r[anim] Done!      " -ForegroundColor Magenta
-}
-
-# ================================================================
-# Function: Clean-RegistryKey (Scan the NAME)
-# ================================================================
-function Clean-RegistryKey {
-    param(
-        [string]$RegistryKey,
-        [string[]]$Keywords
-    )
-    if (-not (Test-Path $RegistryKey)) {
-        Write-Host "[LOG] Registry key '$RegistryKey' does not exist." -ForegroundColor Yellow
-        return
-    }
-    $props = (Get-ItemProperty -Path $RegistryKey -ErrorAction SilentlyContinue).PSObject.Properties
-    foreach ($prop in $props) {
-        foreach ($keyword in $Keywords) {
-            if ($prop.Name -match $keyword) {
-                Remove-ItemProperty -Path $RegistryKey -Name $prop.Name -ErrorAction SilentlyContinue
-                Write-Host "[ACTION] Removed registry entry with name '$($prop.Name)' matching '$keyword' in key '$RegistryKey'." -ForegroundColor Magenta
-            }
-        }
-    }
 }
 
 # ================================================================
@@ -249,7 +224,7 @@ function Revert-All {
         [string]$OriginalPath
     )
     if (-not (Test-Path $FolderPath)) {
-        Write-Host "[WARN] Folder '$FolderPath' not found. It may have already been reverted. Skipping revert operations." -ForegroundColor Yellow
+        Write-Host "[WARN] Folder '$FolderPath' not found. It may have already been reverted." -ForegroundColor Yellow
         return $OriginalPath
     }
     Unhide-Folder -FolderPath $FolderPath
@@ -262,10 +237,54 @@ function Revert-All {
 function Apply-Modification {
     param([string]$CurrentFolder)
     $newFolder = Move-Folder -FolderPath $CurrentFolder -NewLocation $moveToPath
-    $newFolder = Rename-Folder -FolderPath $newFolder -NewName $renamedFolderName
+    $newFolder = Rename-Folder -FolderPath $newFolder -NewName (Get-RandomFolderName)
     Hide-Folder -FolderPath $newFolder
     Write-Host "[LOG] Folder modifications applied: $newFolder" -ForegroundColor DarkYellow
     return $newFolder
+}
+
+# ================================================================
+# Cloak Programs Functions
+# ================================================================
+$cloakedPrograms = @(
+    "C:\Path\To\Program1.exe",  # Replace with actual program paths
+    "C:\Path\To\Program2.exe"
+)
+
+function Hide-Process {
+    param (
+        [string]$processName
+    )
+    # Rudimentary trick: call rundll32 to force a system action.
+    $cmd = "rundll32.exe user32.dll,LockWorkStation"
+    Start-Process $cmd -WindowStyle Hidden
+    Write-Host "Process $processName is now hidden." -ForegroundColor DarkMagenta
+}
+
+function Scrub-Timestamps {
+    param (
+        [string]$programPath
+    )
+    try {
+        (Get-Item $programPath).CreationTime = (Get-Date "01/01/2000")
+        (Get-Item $programPath).LastAccessTime = (Get-Date "01/01/2000")
+        (Get-Item $programPath).LastWriteTime = (Get-Date "01/01/2000")
+        Write-Host "Timestamps for $programPath have been scrubbed." -ForegroundColor DarkMagenta
+    } catch {
+        Write-Host "Failed to scrub timestamps for $programPath." -ForegroundColor Red
+    }
+}
+
+function Cloak-Programs {
+    foreach ($program in $cloakedPrograms) {
+        if (Test-Path $program) {
+            Hide-Process -processName $program
+            Scrub-Timestamps -programPath $program
+            Write-Host "Program $program is now cloaked." -ForegroundColor DarkMagenta
+        } else {
+            Write-Host "Program path $program not found." -ForegroundColor Yellow
+        }
+    }
 }
 
 # ================================================================
@@ -273,7 +292,6 @@ function Apply-Modification {
 # ================================================================
 $folderPath         = $originalPath
 $originalFolderName = [System.IO.Path]::GetFileName($originalPath)
-$renamedFolderName  = Get-RandomFolderName
 $global:modifiedState = $true
 
 Write-Host "[LOG] Applying initial folder modifications..." -ForegroundColor Green
@@ -295,9 +313,7 @@ if (($regCleanupKeyInput -ne "") -and ($keywords.Count -gt 0)) {
 # Global Hotkey Listener (Background Job)
 # ================================================================
 $tempTriggerFile = "C:\Temp\hotkeytrigger.txt"
-if (-not (Test-Path "C:\Temp")) {
-    New-Item -ItemType Directory -Path "C:\Temp" | Out-Null
-}
+if (-not (Test-Path "C:\Temp")) { New-Item -ItemType Directory -Path "C:\Temp" | Out-Null }
 if (Test-Path $tempTriggerFile) { Remove-Item $tempTriggerFile -Force }
 
 Start-Job -ScriptBlock {
@@ -363,6 +379,8 @@ while ($true) {
         $content = Get-Content $tempTriggerFile -ErrorAction SilentlyContinue
         if ($content -match "toggle") {
             Toggle-Modifications
+            # Also cloak programs when toggled:
+            Cloak-Programs
             Clear-Content $tempTriggerFile
         }
     }
