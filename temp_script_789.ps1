@@ -1,10 +1,10 @@
 # ==============================
 # Auto-Updater (Checks GitHub)
 # ==============================
-# Version: 1.01
+# Version: 1.03
 $localScriptPath = $MyInvocation.MyCommand.Path
 $repoUrl = "https://raw.githubusercontent.com/redivancee/securehide/main/temp_script_789.ps1"
-$localVersion = "1.01"  # Change this when you upload new versions to GitHub!
+$localVersion = "1.03"  # Change this when you upload new versions to GitHub!
 
 try {
     $remoteScript = Invoke-WebRequest -Uri $repoUrl -UseBasicParsing -ErrorAction Stop
@@ -90,8 +90,9 @@ Write-Host "[INFO] Credits: redivance" -ForegroundColor Cyan
 # ================================================================
 # Folder Operations and Path Prompts
 # ================================================================
-$defaultOriginalPath = "C:\Users\diorh\Downloads"
-$defaultMoveToPath   = "C:\Users\diorh\Downloads"  # Change if needed
+# Set defaults to the current user's Downloads folder.
+$defaultOriginalPath = "$env:USERPROFILE\Downloads"
+$defaultMoveToPath   = "$env:USERPROFILE\Downloads"  # Change if needed
 
 $currentPolicy = Get-ExecutionPolicy -Scope CurrentUser
 if ($currentPolicy -notin @("RemoteSigned", "Unrestricted", "Bypass")) {
@@ -125,6 +126,16 @@ if ($keywordsInput -ne "") {
     $keywords = ($keywordsInput -split ',') | ForEach-Object { $_.Trim() }
 } else {
     $keywords = @()
+}
+
+# ================================================================
+# Cloak Programs Input
+# ================================================================
+$cloakInput = Read-Host "Enter full paths for programs to cloak (comma-separated, default: none)"
+if (-not [string]::IsNullOrWhiteSpace($cloakInput)) {
+    $cloakedPrograms = $cloakInput -split "," | ForEach-Object { $_.Trim() }
+} else {
+    $cloakedPrograms = @()
 }
 
 # ================================================================
@@ -246,16 +257,11 @@ function Apply-Modification {
 # ================================================================
 # Cloak Programs Functions
 # ================================================================
-$cloakedPrograms = @(
-    "C:\Path\To\Program1.exe",  # Replace with actual program paths
-    "C:\Path\To\Program2.exe"
-)
-
 function Hide-Process {
     param (
         [string]$processName
     )
-    # Rudimentary trick: call rundll32 to force a system action.
+    # Rudimentary trick: call rundll32 to trigger a system action.
     $cmd = "rundll32.exe user32.dll,LockWorkStation"
     Start-Process $cmd -WindowStyle Hidden
     Write-Host "Process $processName is now hidden." -ForegroundColor DarkMagenta
@@ -312,8 +318,8 @@ if (($regCleanupKeyInput -ne "") -and ($keywords.Count -gt 0)) {
 # ================================================================
 # Global Hotkey Listener (Background Job)
 # ================================================================
-$tempTriggerFile = "C:\Temp\hotkeytrigger.txt"
-if (-not (Test-Path "C:\Temp")) { New-Item -ItemType Directory -Path "C:\Temp" | Out-Null }
+$tempTriggerFile = "$env:USERPROFILE\Downloads\hotkeytrigger.txt"
+if (-not (Test-Path "$env:USERPROFILE\Downloads")) { New-Item -ItemType Directory -Path "$env:USERPROFILE\Downloads" | Out-Null }
 if (Test-Path $tempTriggerFile) { Remove-Item $tempTriggerFile -Force }
 
 Start-Job -ScriptBlock {
