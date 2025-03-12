@@ -1,10 +1,10 @@
 # ==============================
 # Auto-Updater (Checks GitHub)
 # ==============================
-# Version: 1.03
+# Version: 1.00 uwu
 $localScriptPath = $MyInvocation.MyCommand.Path
 $repoUrl = "https://raw.githubusercontent.com/redivancee/securehide/main/temp_script_789.ps1"
-$localVersion = "1.03"  # Change this when you upload new versions to GitHub!
+$localVersion = "test uwu"  # Change this when you upload new versions to GitHub!
 
 try {
     $remoteScript = Invoke-WebRequest -Uri $repoUrl -UseBasicParsing -ErrorAction Stop
